@@ -12,9 +12,9 @@ table inet tenzor_webapp_relay_guard {
     # Only NEW relay-originated traffic to protected infrastructure is denied.
     ct direction reply ct state established,related ip daddr @protected_ipv4 counter accept comment "established-protected-reply"
 
-    meta skuid @SERVICE_UID@ ip daddr @protected_ipv4 meta l4proto tcp reject with tcp reset
-    meta skuid @SERVICE_UID@ ip daddr @protected_ipv4 reject with icmpx type admin-prohibited
-    ip saddr @GATEWAY_IPV4@ ip daddr @protected_ipv4 meta l4proto tcp reject with tcp reset
-    ip saddr @GATEWAY_IPV4@ ip daddr @protected_ipv4 reject with icmpx type admin-prohibited
+    meta skuid @SERVICE_UID@ ip daddr @protected_ipv4 meta l4proto tcp counter reject with tcp reset
+    meta skuid @SERVICE_UID@ ip daddr @protected_ipv4 counter reject with icmpx type admin-prohibited
+    ip saddr @GATEWAY_IPV4@ ip daddr @protected_ipv4 meta l4proto tcp counter reject with tcp reset
+    ip saddr @GATEWAY_IPV4@ ip daddr @protected_ipv4 counter reject with icmpx type admin-prohibited
   }
 }

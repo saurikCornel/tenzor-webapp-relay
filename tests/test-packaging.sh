@@ -11,8 +11,8 @@ done
 for required in \
   'Requires=tenzor-webapp-relay-egress-guard.service' \
   'ct direction reply ct state established,related ip daddr @protected_ipv4 counter accept' \
-  'meta skuid @SERVICE_UID@ ip daddr @protected_ipv4' \
-  'ip saddr @GATEWAY_IPV4@ ip daddr @protected_ipv4' \
+  'meta skuid @SERVICE_UID@ ip daddr @protected_ipv4 meta l4proto tcp counter reject' \
+  'ip saddr @GATEWAY_IPV4@ ip daddr @protected_ipv4 meta l4proto tcp counter reject' \
   'tenzor-webapp-relay:${gateway_ip}' \
   'TENZOR_WEBAPP_RELAY_EXPECTED_DNS_NAME' \
   '-checkhost "${expected_dns_name}"' \
