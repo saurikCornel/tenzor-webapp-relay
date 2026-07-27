@@ -1,0 +1,20 @@
+table inet tenzor_webapp_relay_guard {
+  set protected_ipv4 {
+    type ipv4_addr
+    flags interval
+    elements = { @PROTECTED_IPV4@ }
+  }
+
+  chain output {
+    type filter hook output priority -151; policy accept;
+
+    # Responses to legitimate inbound diagnostics/control probes must pass.
+    # Only NEW relay-originated traffic to protected infrastructure is denied.
+    ct direction reply ct state established,related ip daddr @protected_ipv4 counter accept comment "established-protected-reply"
+
+    meta skuid @SERVICE_UID@ ip daddr @protected_ipv4 meta l4proto tcp reject with tcp reset
+    meta skuid @SERVICE_UID@ ip daddr @protected_ipv4 reject with icmpx type admin-prohibited
+    ip saddr @GATEWAY_IPV4@ ip daddr @protected_ipv4 meta l4proto tcp reject with tcp reset
+    ip saddr @GATEWAY_IPV4@ ip daddr @protected_ipv4 reject with icmpx type admin-prohibited
+  }
+}

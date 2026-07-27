@@ -1,0 +1,15 @@
+[Unit]
+Description=Tenzor WebApp relay protected-infrastructure egress guard
+After=network-pre.target
+Before=tenzor-webapp-relay.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStartPre=-/usr/sbin/nft delete table inet tenzor_webapp_relay_guard
+ExecStart=/usr/sbin/nft -f /etc/tenzor-webapp-relay/egress-guard.nft
+ExecReload=/bin/sh -ec '/usr/sbin/nft delete table inet tenzor_webapp_relay_guard 2>/dev/null || true; exec /usr/sbin/nft -f /etc/tenzor-webapp-relay/egress-guard.nft'
+ExecStop=-/usr/sbin/nft delete table inet tenzor_webapp_relay_guard
+
+[Install]
+WantedBy=multi-user.target

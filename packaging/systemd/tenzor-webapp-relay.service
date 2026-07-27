@@ -1,0 +1,53 @@
+[Unit]
+Description=Tenzor WebApp relay data plane
+Documentation=https://github.com/saurikCornel/tenzor-webapp-relay
+Requires=tenzor-webapp-relay-egress-guard.service
+After=network-online.target tenzor-webapp-relay-egress-guard.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=tenzor-webapp-relay
+Group=tenzor-webapp-relay
+EnvironmentFile=/etc/tenzor-webapp-relay/relay.env
+ExecStartPre=/usr/local/bin/tenzor-webapp-relay --check-config
+ExecStart=/usr/local/bin/tenzor-webapp-relay
+Restart=always
+RestartSec=2
+TimeoutStopSec=330
+KillSignal=SIGTERM
+KillMode=mixed
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=tenzor-webapp-relay
+LogRateLimitIntervalSec=30s
+LogRateLimitBurst=10000
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectProc=invisible
+ProcSubset=pid
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+SystemCallArchitectures=native
+UMask=0077
+LimitNOFILE=16384
+LimitNPROC=512
+TasksMax=256
+MemoryHigh=768M
+MemoryMax=1G
+
+[Install]
+WantedBy=multi-user.target

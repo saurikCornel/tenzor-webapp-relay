@@ -1,0 +1,15 @@
+# Load from nginx.conf's top-level context, not inside http {}.
+# This is raw TLS pass-through: the Rust relay still validates TLS itself.
+stream {
+    upstream tenzor_webapp_relay_tls {
+        server 127.0.0.1:9443;
+    }
+
+    server {
+        listen <dedicated-public-ip>:443 reuseport;
+        proxy_connect_timeout 3s;
+        proxy_timeout 330s;
+        proxy_socket_keepalive on;
+        proxy_pass tenzor_webapp_relay_tls;
+    }
+}

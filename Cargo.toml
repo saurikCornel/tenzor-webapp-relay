@@ -1,0 +1,31 @@
+[package]
+name = "tenzor-webapp-relay"
+description = "Standalone fail-closed HTTPS CONNECT data plane for Tenzor WebApps."
+edition = "2021"
+license = "MIT"
+version = "0.1.0"
+
+[dependencies]
+base64 = "0.22"
+hmac = "0.12"
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+rustls-pemfile = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+tokio = { version = "1", features = ["io-util", "macros", "net", "rt-multi-thread", "signal", "sync", "time"] }
+tokio-rustls = { version = "0.26", default-features = false, features = ["ring"] }
+
+[dev-dependencies]
+rcgen = { version = "0.13", default-features = false, features = ["ring"] }
+
+[profile.release]
+codegen-units = 1
+lto = "thin"
+panic = "abort"
+strip = "symbols"
+
+[profile.deploy]
+inherits = "release"
+codegen-units = 16
+lto = false

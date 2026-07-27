@@ -1,0 +1,31 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rust toolchain
+        run: rustup toolchain install stable --profile minimal --component rustfmt,clippy
+      - name: Format
+        run: cargo fmt --all -- --check
+      - name: Unit tests
+        run: cargo test --locked
+      - name: Clippy
+        run: cargo clippy --all-targets --locked -- -D warnings
+      - name: Packaging checks
+        run: |
+          cargo build --locked
+          TENZOR_WEBAPP_RELAY_TEST_BINARY=target/debug/tenzor-webapp-relay ./tests/test-packaging.sh
+      - name: Kernel test prerequisites
+        run: sudo apt-get update && sudo apt-get install -y nftables iproute2 util-linux
+      - name: Kernel egress guard
+        run: sudo ./tests/test-egress-guard-netns.sh

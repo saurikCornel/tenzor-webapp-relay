@@ -1,0 +1,10 @@
+/target/
+/build/
+/dist/
+.DS_Store
+*.log
+*.tmp
+*.pem
+*.key
+*.env
+!/configs/*.example.env
