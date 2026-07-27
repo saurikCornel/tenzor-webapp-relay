@@ -11,6 +11,8 @@ done
 for required in \
   'Requires=tenzor-webapp-relay-egress-guard.service' \
   'ct direction reply ct state established,related ip daddr @protected_ipv4 counter accept' \
+  'ip daddr @control_allow_ipv4 tcp dport 8443 counter accept' \
+  'TENZOR_WEBAPP_RELAY_CONTROL_ALLOW_IPV4' \
   'meta skuid @SERVICE_UID@ ip daddr @protected_ipv4 meta l4proto tcp counter reject' \
   'ip saddr @GATEWAY_IPV4@ ip daddr @protected_ipv4 meta l4proto tcp counter reject' \
   'tenzor-webapp-relay:${gateway_ip}' \

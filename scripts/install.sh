@@ -165,6 +165,29 @@ protected_ipv4_elements() {
   printf '%s' "${result}"
 }
 
+optional_ipv4_elements_line() {
+  local raw="$1" item result="" count=0
+  local -a items
+  IFS=, read -ra items <<<"${raw}"
+  for item in "${items[@]}"; do
+    item="${item#"${item%%[![:space:]]*}"}"
+    item="${item%"${item##*[![:space:]]}"}"
+    [[ -n "${item}" ]] || continue
+    is_public_ipv4 "${item}" || fail "CONTROL_ALLOW_IPV4 must contain canonical public IPv4 addresses only"
+    case ",${result// /}," in
+      *,"${item}",*) continue ;;
+    esac
+    [[ -z "${result}" ]] || result+=", "
+    result+="${item}"
+    count=$((count + 1))
+  done
+  if ((count == 0)); then
+    printf ''
+  else
+    printf 'elements = { %s }' "${result}"
+  fi
+}
+
 run_config_check() {
   collect_config_env
   env -i PATH="${PATH}" "${config_env[@]}" "${binary}" --check-config >/dev/null
@@ -202,6 +225,7 @@ metrics_port="${metrics_port%]}"
 ((10#${metrics_port} <= 65535)) || fail "METRICS_BIND port is out of range"
 deny_ips="$(env_value TENZOR_WEBAPP_RELAY_DENY_IPS)"
 protected_elements="$(protected_ipv4_elements "${deny_ips}")"
+control_allow_elements="$(optional_ipv4_elements_line "$(env_value TENZOR_WEBAPP_RELAY_CONTROL_ALLOW_IPV4)")"
 case ",${protected_elements// /}," in
   *,"${gateway_ip}",*) ;;
   *) fail "DENY_IPS must include the relay's own public IPv4 ${gateway_ip}" ;;
@@ -285,6 +309,7 @@ sed \
   -e "s/@SERVICE_UID@/${service_uid}/g" \
   -e "s/@GATEWAY_IPV4@/${gateway_ip}/g" \
   -e "s/@PROTECTED_IPV4@/${protected_elements}/g" \
+  -e "s/@CONTROL_ALLOW_IPV4_ELEMENTS@/${control_allow_elements}/g" \
   "${repo_root}/packaging/nftables/egress-guard.nft.in" >"${guard_tmp}"
 nft -c -f "${guard_tmp}"
 install -m 0644 "${guard_tmp}" "${config_dir}/egress-guard.nft"
