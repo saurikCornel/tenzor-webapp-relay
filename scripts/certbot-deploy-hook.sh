@@ -6,9 +6,14 @@ target_dir="${TENZOR_WEBAPP_RELAY_CERT_TARGET_DIR:-/etc/tenzor-webapp-relay/tls}
 service="${TENZOR_WEBAPP_RELAY_SERVICE:-tenzor-webapp-relay.service}"
 service_group="${TENZOR_WEBAPP_RELAY_SERVICE_GROUP:-tenzor-webapp-relay}"
 metrics_bind="${TENZOR_WEBAPP_RELAY_METRICS_BIND:-127.0.0.1:9800}"
+expected_dns_name="${TENZOR_WEBAPP_RELAY_EXPECTED_DNS_NAME:-}"
 
 [[ -n "${source_dir}" ]] || {
   echo "error: RENEWED_LINEAGE or TENZOR_WEBAPP_RELAY_CERT_SOURCE_DIR is required" >&2
+  exit 1
+}
+[[ "${expected_dns_name}" =~ ^[A-Za-z0-9]([A-Za-z0-9.-]{0,251}[A-Za-z0-9])?$ ]] || {
+  echo "error: TENZOR_WEBAPP_RELAY_EXPECTED_DNS_NAME is required" >&2
   exit 1
 }
 for command in curl install mktemp openssl sha256sum systemctl; do
@@ -25,6 +30,11 @@ openssl x509 -in "${source_dir}/fullchain.pem" -checkend 3600 -noout >/dev/null 
   echo "error: renewed certificate is already expired or expires within one hour" >&2
   exit 1
 }
+if ! openssl x509 -in "${source_dir}/fullchain.pem" \
+  -checkhost "${expected_dns_name}" -noout >/dev/null 2>&1; then
+  echo "certificate rotation skipped: lineage does not cover ${expected_dns_name}"
+  exit 0
+fi
 
 certificate_key_hash="$({ openssl x509 -in "${source_dir}/fullchain.pem" -pubkey -noout | openssl pkey -pubin -outform DER; } | sha256sum | awk '{print $1}')"
 private_key_hash="$(openssl pkey -in "${source_dir}/privkey.pem" -pubout -outform DER | sha256sum | awk '{print $1}')"

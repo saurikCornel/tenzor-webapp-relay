@@ -14,6 +14,8 @@ for required in \
   'meta skuid @SERVICE_UID@ ip daddr @protected_ipv4' \
   'ip saddr @GATEWAY_IPV4@ ip daddr @protected_ipv4' \
   'tenzor-webapp-relay:${gateway_ip}' \
+  'TENZOR_WEBAPP_RELAY_EXPECTED_DNS_NAME' \
+  '-checkhost "${expected_dns_name}"' \
   '"${versioned_binary}" --check-config'; do
   grep -R -Fq "${required}" "${repo_root}/packaging" "${repo_root}/scripts" || {
     echo "error: missing packaging safety contract: ${required}" >&2
