@@ -192,14 +192,28 @@ fn required_env(suffix: &str) -> Result<String, String> {
         })
 }
 
+/// The public socket clients connect to.
+///
+/// The address must stay an explicit public IPv4 so a deployment cannot
+/// accidentally expose the relay on a wildcard or loopback socket.
+///
+/// The port is deliberately not pinned to 443. A gateway is a TLS tunnel that
+/// carries a burst of connections from one subscriber, and running that burst
+/// on 443 is what got 443 itself filtered for the affected networks — taking
+/// the platform's own website and API down with it, because they share that
+/// port number even though they are a different address entirely. Keeping the
+/// port configurable is what stops the next deployment from recreating that.
 fn parse_gateway_bind(raw: &str) -> Result<SocketAddrV4, String> {
     let bind = raw.parse::<SocketAddrV4>().map_err(|_| {
-        "TENZOR_WEBAPP_RELAY_BIND must be an explicit public IPv4:443 address".to_string()
+        "TENZOR_WEBAPP_RELAY_BIND must be an explicit public IPv4 socket address".to_string()
     })?;
-    if bind.port() != 443 || !is_public_destination_ipv4(*bind.ip()) {
+    if !is_public_destination_ipv4(*bind.ip()) {
         return Err(
-            "TENZOR_WEBAPP_RELAY_BIND must be an explicit public IPv4 on port 443".to_string(),
+            "TENZOR_WEBAPP_RELAY_BIND must be an explicit public IPv4 address".to_string(),
         );
+    }
+    if bind.port() == 0 {
+        return Err("TENZOR_WEBAPP_RELAY_BIND must name a port".to_string());
     }
     Ok(bind)
 }
@@ -2486,11 +2500,18 @@ mod tests {
         assert!(parse_denied_ips("127.0.0.1").is_err());
         assert!(parse_gateway_bind("0.0.0.0:443").is_err());
         assert!(parse_gateway_bind("127.0.0.1:443").is_err());
-        assert!(parse_gateway_bind("1.1.1.1:8443").is_err());
         assert!(parse_gateway_bind("gateway.example.com:443").is_err());
+        assert!(parse_gateway_bind("1.1.1.1:0").is_err());
         assert_eq!(
             parse_gateway_bind("1.1.1.1:443").unwrap(),
             "1.1.1.1:443".parse().unwrap()
+        );
+        // A gateway must be deployable off 443. Pinning the port here is what
+        // forced a tunnel burst onto the same port number the platform's own
+        // website and API answer on, and took them down with it.
+        assert_eq!(
+            parse_gateway_bind("1.1.1.1:8443").unwrap(),
+            "1.1.1.1:8443".parse().unwrap()
         );
         assert_eq!(
             parse_metrics_bind("127.0.0.1:9800").unwrap(),
