@@ -16,12 +16,19 @@ for required in \
   'tenzor-webapp-relay:${gateway_ip}' \
   'TENZOR_WEBAPP_RELAY_EXPECTED_DNS_NAME' \
   '-checkhost "${expected_dns_name}"' \
+  'install_status=$?' \
+  'grep -F "${gateway_ip}" >/dev/null' \
   '"${versioned_binary}" --check-config'; do
   grep -R -Fq "${required}" "${repo_root}/packaging" "${repo_root}/scripts" || {
     echo "error: missing packaging safety contract: ${required}" >&2
     exit 1
   }
 done
+
+if grep -Fq 'grep -Fq "${gateway_ip}"' "${repo_root}/scripts/install.sh"; then
+  echo "error: installer guard check can fail under pipefail due to grep -q" >&2
+  exit 1
+fi
 
 if grep -R -E \
   'TENZOR_RELAY_(MODE|TRUSTTUNNEL|GATE_MODE|X25519)|185\.250\.46\.114|cornel\.pro' \

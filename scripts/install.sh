@@ -267,17 +267,20 @@ old_target="$(readlink -f "${installed_binary}" 2>/dev/null || true)"
 ln -sfn "${versioned_binary}" "${installed_binary}"
 activated=1
 rollback() {
-  local status=$?
+  local status="${1:-$?}"
   if ((status != 0 && activated)) && [[ -n "${old_target}" && -x "${old_target}" ]]; then
     ln -sfn "${old_target}" "${installed_binary}"
     systemctl restart "${service_name}" >/dev/null 2>&1 || true
+  elif ((status != 0 && activated)); then
+    systemctl stop "${service_name}" >/dev/null 2>&1 || true
+    rm -f "${installed_binary}"
   fi
   exit "${status}"
 }
-trap rollback EXIT
+trap 'rollback "$?"' EXIT
 
 guard_tmp="$(mktemp)"
-trap 'rm -f "${guard_tmp}"; rollback' EXIT
+trap 'install_status=$?; rm -f "${guard_tmp}"; rollback "${install_status}"' EXIT
 sed \
   -e "s/@SERVICE_UID@/${service_uid}/g" \
   -e "s/@GATEWAY_IPV4@/${gateway_ip}/g" \
@@ -310,7 +313,9 @@ done
   fail "relay readiness did not become healthy"
 }
 systemctl is-active --quiet "${guard_name}" || fail "kernel egress guard is not active"
-nft list set inet tenzor_webapp_relay_guard protected_ipv4 | grep -Fq "${gateway_ip}" ||
+# Do not use grep -q with pipefail here: once grep exits on a match, nft can
+# receive SIGPIPE and turn a successful guard check into a false failure.
+nft list set inet tenzor_webapp_relay_guard protected_ipv4 | grep -F "${gateway_ip}" >/dev/null ||
   fail "kernel egress guard does not protect the relay public IPv4"
 
 activated=0
