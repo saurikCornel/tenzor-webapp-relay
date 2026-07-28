@@ -208,9 +208,7 @@ fn parse_gateway_bind(raw: &str) -> Result<SocketAddrV4, String> {
         "TENZOR_WEBAPP_RELAY_BIND must be an explicit public IPv4 socket address".to_string()
     })?;
     if !is_public_destination_ipv4(*bind.ip()) {
-        return Err(
-            "TENZOR_WEBAPP_RELAY_BIND must be an explicit public IPv4 address".to_string(),
-        );
+        return Err("TENZOR_WEBAPP_RELAY_BIND must be an explicit public IPv4 address".to_string());
     }
     if bind.port() == 0 {
         return Err("TENZOR_WEBAPP_RELAY_BIND must name a port".to_string());
@@ -909,6 +907,7 @@ async fn handle_connection(
             return;
         }
     };
+    request_log.set_target(request.host.clone(), request.port);
 
     let now_unix = unix_time_secs();
     let claims = match verify_token(&request.token, &config, now_unix) {
@@ -1031,6 +1030,7 @@ struct ConnectionLogGuard {
     request_id: u64,
     started: Instant,
     outcome: &'static str,
+    target: Option<(String, u16)>,
 }
 
 impl ConnectionLogGuard {
@@ -1039,22 +1039,38 @@ impl ConnectionLogGuard {
             request_id,
             started: Instant::now(),
             outcome: "connection_dropped",
+            target: None,
         }
     }
 
     fn set_outcome(&mut self, outcome: &'static str) {
         self.outcome = outcome;
     }
+
+    fn set_target(&mut self, host: String, port: u16) {
+        self.target = Some((host, port));
+    }
 }
 
 impl Drop for ConnectionLogGuard {
     fn drop(&mut self) {
-        eprintln!(
-            "service=cornel_web_gateway event=connection_closed request_id={} outcome={} duration_ms={}",
-            self.request_id,
-            self.outcome,
-            self.started.elapsed().as_millis(),
-        );
+        if let Some((host, port)) = &self.target {
+            eprintln!(
+                "service=cornel_web_gateway event=connection_closed request_id={} outcome={} target={}:{} duration_ms={}",
+                self.request_id,
+                self.outcome,
+                host,
+                port,
+                self.started.elapsed().as_millis(),
+            );
+        } else {
+            eprintln!(
+                "service=cornel_web_gateway event=connection_closed request_id={} outcome={} duration_ms={}",
+                self.request_id,
+                self.outcome,
+                self.started.elapsed().as_millis(),
+            );
+        }
     }
 }
 
@@ -1629,9 +1645,6 @@ async fn resolve_and_connect(
     .map_err(|_| ConnectError::Dns)?;
     let mut addresses = Vec::new();
     for address in resolved {
-        if addresses.len() >= MAX_RESOLVED_ADDRESSES {
-            return Err(ConnectError::Policy);
-        }
         if !addresses.contains(&address) {
             addresses.push(address);
         }
@@ -1640,19 +1653,14 @@ async fn resolve_and_connect(
         return Err(ConnectError::Dns);
     }
 
-    // Reject the whole DNS answer, not only the selected address. This blocks
-    // mixed public/private answers and pins a single checked address per dial.
-    if addresses.iter().any(|address| {
-        !is_public_destination_socket(*address) || config.denied_ips.contains(&address.ip())
-    }) {
-        return Err(ConnectError::Policy);
-    }
-
     // This deployment contract has an explicit dedicated IPv4 but no
-    // dedicated IPv6 source. Ignore safe AAAA answers rather than leaking
-    // traffic over the host's shared/default IPv6 route. IPv6-only targets
-    // fail closed until a dedicated IPv6 source is added to the contract.
-    let addresses = dedicated_ipv4_egress_addresses(addresses);
+    // dedicated IPv6 source. Real CDNs often return large, rotating mixed
+    // A/AAAA sets; rejecting the entire DNS answer because one candidate is
+    // IPv6, denied or otherwise non-routable makes valid Web Apps randomly
+    // fail. Select only safe public IPv4 candidates and fail closed if none
+    // exist. Private, special-use and explicitly denied addresses are never
+    // dialed.
+    let addresses = dedicated_ipv4_egress_addresses(addresses, &config.denied_ips);
     if addresses.is_empty() {
         return Err(ConnectError::Policy);
     }
@@ -1680,8 +1688,25 @@ async fn resolve_and_connect(
     Err(ConnectError::Connect)
 }
 
-fn dedicated_ipv4_egress_addresses(addresses: Vec<SocketAddr>) -> Vec<SocketAddr> {
-    addresses.into_iter().filter(SocketAddr::is_ipv4).collect()
+fn dedicated_ipv4_egress_addresses(
+    addresses: Vec<SocketAddr>,
+    denied_ips: &HashSet<IpAddr>,
+) -> Vec<SocketAddr> {
+    let mut selected = Vec::new();
+    for address in addresses {
+        if !address.is_ipv4()
+            || !is_public_destination_socket(address)
+            || denied_ips.contains(&address.ip())
+            || selected.contains(&address)
+        {
+            continue;
+        }
+        selected.push(address);
+        if selected.len() >= MAX_RESOLVED_ADDRESSES {
+            break;
+        }
+    }
+    selected
 }
 
 async fn connect_from_gateway_ipv4(
@@ -2591,6 +2616,7 @@ mod tests {
 
     #[test]
     fn dedicated_ipv4_egress_never_uses_shared_ipv6_route() {
+        let denied = HashSet::new();
         let v6_first: Vec<SocketAddr> = vec![
             "[2606:4700:4700::1111]:443".parse().unwrap(),
             "[2001:4860:4860::8888]:443".parse().unwrap(),
@@ -2598,16 +2624,36 @@ mod tests {
             "8.8.8.8:443".parse().unwrap(),
         ];
         assert_eq!(
-            dedicated_ipv4_egress_addresses(v6_first),
+            dedicated_ipv4_egress_addresses(v6_first, &denied),
             vec![
                 "1.1.1.1:443".parse().unwrap(),
                 "8.8.8.8:443".parse().unwrap(),
             ]
         );
-        assert!(
-            dedicated_ipv4_egress_addresses(vec!["[2606:4700:4700::1111]:443".parse().unwrap(),])
-                .is_empty()
-        );
+        assert!(dedicated_ipv4_egress_addresses(
+            vec!["[2606:4700:4700::1111]:443".parse().unwrap(),],
+            &denied,
+        )
+        .is_empty());
+    }
+
+    #[test]
+    fn dedicated_ipv4_egress_filters_cdns_without_rejecting_entire_answer() {
+        let denied = HashSet::from([IpAddr::V4(Ipv4Addr::new(203, 0, 113, 7))]);
+        let mut addresses: Vec<SocketAddr> = vec![
+            "10.0.0.1:443".parse().unwrap(),
+            "203.0.113.7:443".parse().unwrap(),
+            "[2606:4700:4700::1111]:443".parse().unwrap(),
+        ];
+        for index in 1..=24 {
+            addresses.push(format!("8.8.4.{index}:443").parse().unwrap());
+        }
+
+        let selected = dedicated_ipv4_egress_addresses(addresses, &denied);
+        assert_eq!(selected.len(), MAX_RESOLVED_ADDRESSES);
+        assert_eq!(selected[0], "8.8.4.1:443".parse().unwrap());
+        assert!(!selected.contains(&"10.0.0.1:443".parse().unwrap()));
+        assert!(!selected.contains(&"203.0.113.7:443".parse().unwrap()));
     }
 
     struct StalledShutdownWriter;
