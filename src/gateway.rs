@@ -15,6 +15,7 @@ use hmac::{Hmac, Mac};
 use rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
+use socket2::{Domain, Protocol, Socket, Type};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use tokio::net::{lookup_host, TcpListener, TcpSocket, TcpStream};
 use tokio::sync::{watch, OwnedSemaphorePermit, Semaphore};
@@ -26,6 +27,7 @@ pub(crate) const PROTOCOL_VERSION: &str = "cornel-web-gateway-connect-v1";
 const ENV_PREFIX: &str = "TENZOR_WEBAPP_RELAY_";
 const TOKEN_PREFIX: &str = "cwg1";
 const PROXY_USERNAME: &str = "cornel";
+const GATEWAY_LISTEN_BACKLOG: u32 = 8192;
 const MAX_TOKEN_BYTES: usize = 4096;
 const MAX_PAYLOAD_BYTES: usize = 2048;
 const MAX_DESTINATION_PATTERNS: usize = 32;
@@ -348,8 +350,7 @@ fn build_tls_config(
 }
 
 pub(crate) fn run_dedicated(config: Config, metrics: Arc<Metrics>) -> io::Result<()> {
-    let gateway_listener = StdTcpListener::bind(config.listen_bind)?;
-    gateway_listener.set_nonblocking(true)?;
+    let gateway_listener = bind_gateway_listener(SocketAddr::V4(config.listen_bind))?;
     let gateway_bind = gateway_listener.local_addr()?;
     let metrics_listener = StdTcpListener::bind(config.metrics_bind)?;
     metrics_listener.set_nonblocking(true)?;
@@ -833,6 +834,19 @@ async fn serve_gateway(
             .await;
         });
     }
+}
+
+fn bind_gateway_listener(address: SocketAddr) -> io::Result<StdTcpListener> {
+    let domain = match address {
+        SocketAddr::V4(_) => Domain::IPV4,
+        SocketAddr::V6(_) => Domain::IPV6,
+    };
+    let socket = Socket::new(domain, Type::STREAM, Some(Protocol::TCP))?;
+    socket.set_reuse_address(true)?;
+    socket.set_nonblocking(true)?;
+    socket.bind(&address.into())?;
+    socket.listen(GATEWAY_LISTEN_BACKLOG as i32)?;
+    Ok(socket.into())
 }
 
 struct GatewayReadinessGuard {

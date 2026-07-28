@@ -4,7 +4,11 @@
 
 Use a WebApp-only VPS/public IP. Do not place the main website, API, VPN ingress
 or a generic outbound proxy on it. Permit only the configured public WebApp
-relay TCP port (currently `8443` in production); keep metrics on loopback.
+relay TCP port (currently `8443` in production); keep metrics on loopback. The
+relay binds its public listener with an explicit backlog of 8192 so bursts of
+many WebViews do not depend on distro/runtime defaults. Install
+`packaging/sysctl/90-tenzor-webapp-relay.conf`; otherwise Linux clamps the
+listener backlog to the host's lower `net.core.somaxconn`.
 Install `nftables`, systemd, CA certificates and curl.
 
 ## Configuration

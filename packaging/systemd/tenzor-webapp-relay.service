@@ -43,11 +43,11 @@ RestrictSUIDSGID=true
 LockPersonality=true
 SystemCallArchitectures=native
 UMask=0077
-LimitNOFILE=16384
-LimitNPROC=512
-TasksMax=256
-MemoryHigh=768M
-MemoryMax=1G
+LimitNOFILE=262144
+LimitNPROC=4096
+TasksMax=4096
+MemoryHigh=1536M
+MemoryMax=1800M
 
 [Install]
 WantedBy=multi-user.target

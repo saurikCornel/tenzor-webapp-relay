@@ -321,6 +321,9 @@ install -m 0644 "${repo_root}/packaging/systemd/tenzor-webapp-relay.service" \
   "/etc/systemd/system/${service_name}"
 install -m 0644 "${repo_root}/packaging/systemd/tenzor-webapp-relay-egress-guard.service" \
   "/etc/systemd/system/${guard_name}"
+install -D -m 0644 "${repo_root}/packaging/sysctl/90-tenzor-webapp-relay.conf" \
+  /etc/sysctl.d/90-tenzor-webapp-relay.conf
+sysctl --system >/dev/null
 
 systemctl daemon-reload
 systemctl enable "${guard_name}" "${service_name}" >/dev/null
