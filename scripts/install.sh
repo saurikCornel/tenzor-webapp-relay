@@ -205,9 +205,11 @@ esac
 validate_env_file
 
 bind="$(env_value TENZOR_WEBAPP_RELAY_BIND)"
-[[ "${bind}" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}:443$ ]] ||
-  fail "BIND must be an explicit public IPv4 on port 443"
-gateway_ip="${bind%:443}"
+[[ "${bind}" =~ ^(([0-9]{1,3}\.){3}[0-9]{1,3}):([1-9][0-9]{0,4})$ ]] ||
+  fail "BIND must be an explicit public IPv4 socket address"
+gateway_ip="${BASH_REMATCH[1]}"
+gateway_port="${BASH_REMATCH[3]}"
+((10#${gateway_port} <= 65535)) || fail "BIND port is out of range"
 is_public_ipv4 "${gateway_ip}" || fail "BIND must use a canonical public IPv4"
 listen_bind="$(env_value TENZOR_WEBAPP_RELAY_LISTEN_BIND)"
 if [[ -n "${listen_bind}" ]]; then

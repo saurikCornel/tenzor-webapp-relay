@@ -3,8 +3,9 @@
 ## Host boundary
 
 Use a WebApp-only VPS/public IP. Do not place the main website, API, VPN ingress
-or a generic outbound proxy on it. Permit public TCP 443 only; keep metrics on
-loopback. Install `nftables`, systemd, CA certificates and curl.
+or a generic outbound proxy on it. Permit only the configured public WebApp
+relay TCP port (currently `8443` in production); keep metrics on loopback.
+Install `nftables`, systemd, CA certificates and curl.
 
 ## Configuration
 
@@ -13,10 +14,11 @@ placeholder, and provision certificate/key/HMAC files under
 `/etc/tenzor-webapp-relay`. Values are plain `KEY=value` without shell syntax.
 The deploy script never uploads this file or its referenced secrets.
 
-For a dedicated IP the Rust process may own public `:443`. If Nginx must retain
-the public socket, set `LISTEN_BIND=127.0.0.1:9443` and adapt the provided
-top-level `stream` configuration. Nginx must pass raw TLS and must not send
-PROXY protocol.
+For a dedicated IP the Rust process may own the configured public socket
+directly, for example `TENZOR_WEBAPP_RELAY_BIND=<ip>:8443`. If Nginx must
+retain the public socket, set `LISTEN_BIND=127.0.0.1:9443` and adapt the
+provided top-level `stream` configuration. Nginx must pass raw TLS and must not
+send PROXY protocol.
 
 ## Install and deploy
 
