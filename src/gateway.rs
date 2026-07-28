@@ -33,6 +33,7 @@ const MAX_DESTINATION_SCOPE_BYTES: usize = 1024;
 const MAX_RESOLVED_ADDRESSES: usize = 16;
 const COPY_BUFFER_BYTES: usize = 16 * 1024;
 const MAX_TOKEN_LIFETIME_SECS: u64 = 15 * 60;
+const HALF_CLOSE_SHUTDOWN_TIMEOUT_MS: u64 = 500;
 
 type HmacSha256 = Hmac<Sha256>;
 
@@ -2167,7 +2168,17 @@ where
                     state.abort.store(true, Ordering::Relaxed);
                     return DirectionOutcome::TokenExpired;
                 };
-                let shutdown_for = state.idle_timeout.min(token_remaining);
+                // A WebKit tab switch normally closes the client half of a
+                // tunnel while the remote side may keep its TLS/socket open for
+                // a long time. If we only return EOF from this direction, the
+                // sibling copy task can sit in read() until the full idle
+                // timeout, retaining the per-user/per-token quota slot. Signal
+                // abort first and bound FIN propagation tightly so bursty
+                // app-switches free admission capacity immediately.
+                state.abort.store(true, Ordering::Relaxed);
+                let shutdown_for = Duration::from_millis(HALF_CLOSE_SHUTDOWN_TIMEOUT_MS)
+                    .min(state.idle_timeout)
+                    .min(token_remaining);
                 return match timeout(shutdown_for, writer.shutdown()).await {
                     Ok(Ok(())) => DirectionOutcome::Eof,
                     Ok(Err(_)) => {
@@ -2711,5 +2722,35 @@ mod tests {
 
         assert_eq!(concurrency.available_permits(), 1);
         assert!(quotas.acquire("subject", "token", 1, 1).is_some());
+    }
+
+    #[tokio::test]
+    async fn client_eof_aborts_peer_direction_without_waiting_for_idle_timeout() {
+        let metrics = Metrics::default();
+        let state = Arc::new(PumpState {
+            started: Instant::now(),
+            last_activity_ms: AtomicU64::new(0),
+            total_bytes: AtomicU64::new(0),
+            abort: AtomicBool::new(false),
+            max_bytes: 1024,
+            idle_timeout: Duration::from_secs(30),
+            token_deadline: Instant::now() + Duration::from_secs(60),
+            metrics: &metrics,
+        });
+
+        let outcome = timeout(
+            Duration::from_secs(1),
+            copy_direction(
+                tokio::io::empty(),
+                tokio::io::sink(),
+                state.clone(),
+                TrafficDirection::Up,
+            ),
+        )
+        .await
+        .expect("client EOF must complete without waiting for idle timeout");
+
+        assert_eq!(outcome, DirectionOutcome::Eof);
+        assert!(state.abort.load(Ordering::Relaxed));
     }
 }
