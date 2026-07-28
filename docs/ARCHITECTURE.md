@@ -25,3 +25,13 @@ Isolation is enforced twice:
 A data-plane failure therefore affects WebApps only. Main website, API and VPN
 ingress must live outside this host/IP and must never be routed through this
 service or its Nginx stream listener.
+
+## Connection lifetime and admission slots
+
+One visible WebKit WebApp can open several HTTPS CONNECT tunnels. When the user
+switches to another WebApp, WebKit may half-close the client side while the
+remote origin keeps its socket open. The relay must treat that client EOF as an
+authoritative tunnel teardown signal, abort the sibling copy direction and
+release per-user/per-token admission slots immediately. Do not compensate for
+slot saturation by adding retries, probes or queueing to the main control plane:
+the control plane is not part of the WebApps data-plane failure domain.
