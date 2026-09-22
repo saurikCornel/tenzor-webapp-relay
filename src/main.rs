@@ -3,20 +3,25 @@ use std::io;
 use std::sync::Arc;
 
 use serde::Serialize;
+use sha2::{Digest, Sha256};
 
 mod gateway;
 
 const BUILD_SCHEMA: &str = "tenzor-module-build-v1";
 
-const COMPONENTS: &[&str] = &[
-    "webapp-relay",
-];
+const COMPONENTS: &[&str] = &["webapp-relay"];
 
 const CAPABILITIES: &[&str] = &[
     "dedicated-data-plane-v1",
     "kernel-egress-guard-v1",
     "graceful-drain-v1",
 ];
+
+#[derive(Serialize)]
+struct DependencyLock {
+    file: &'static str,
+    sha256: String,
+}
 
 #[derive(Serialize)]
 struct BuildInfo {
@@ -27,19 +32,33 @@ struct BuildInfo {
     build_version: &'static str,
     git_commit: &'static str,
     built_at_unix: &'static str,
+    dependency_lock: DependencyLock,
     protocol: &'static str,
     capabilities: &'static [&'static str],
 }
 
+fn build_metadata(value: Option<&'static str>, fallback: &'static str) -> &'static str {
+    value
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .unwrap_or(fallback)
+}
+
+// Only compile-time inputs belong here: this path must not read runtime
+// configuration, credentials, files or open sockets.
 fn build_info() -> BuildInfo {
     BuildInfo {
         schema: BUILD_SCHEMA,
         components: COMPONENTS,
-        name: "tenzor-webapp-relay",
+        name: env!("CARGO_PKG_NAME"),
         version: env!("CARGO_PKG_VERSION"),
-        build_version: option_env!("TENZOR_BUILD_VERSION").unwrap_or("dev"),
-        git_commit: option_env!("TENZOR_GIT_COMMIT").unwrap_or("unknown"),
-        built_at_unix: option_env!("TENZOR_BUILT_AT_UNIX").unwrap_or("unknown"),
+        build_version: build_metadata(option_env!("TENZOR_BUILD_VERSION"), "dev"),
+        git_commit: build_metadata(option_env!("TENZOR_GIT_COMMIT"), "unknown"),
+        built_at_unix: build_metadata(option_env!("TENZOR_BUILT_AT_UNIX"), "unknown"),
+        dependency_lock: DependencyLock {
+            file: "Cargo.lock",
+            sha256: format!("{:x}", Sha256::digest(include_bytes!("../Cargo.lock"))),
+        },
         protocol: gateway::PROTOCOL_VERSION,
         capabilities: CAPABILITIES,
     }
