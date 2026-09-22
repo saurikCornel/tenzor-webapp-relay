@@ -6,6 +6,12 @@ use serde::Serialize;
 
 mod gateway;
 
+const BUILD_SCHEMA: &str = "tenzor-module-build-v1";
+
+const COMPONENTS: &[&str] = &[
+    "webapp-relay",
+];
+
 const CAPABILITIES: &[&str] = &[
     "dedicated-data-plane-v1",
     "kernel-egress-guard-v1",
@@ -14,6 +20,8 @@ const CAPABILITIES: &[&str] = &[
 
 #[derive(Serialize)]
 struct BuildInfo {
+    schema: &'static str,
+    components: &'static [&'static str],
     name: &'static str,
     version: &'static str,
     build_version: &'static str,
@@ -25,6 +33,8 @@ struct BuildInfo {
 
 fn build_info() -> BuildInfo {
     BuildInfo {
+        schema: BUILD_SCHEMA,
+        components: COMPONENTS,
         name: "tenzor-webapp-relay",
         version: env!("CARGO_PKG_VERSION"),
         build_version: option_env!("TENZOR_BUILD_VERSION").unwrap_or("dev"),
