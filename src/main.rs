@@ -9,7 +9,19 @@ mod gateway;
 
 const BUILD_SCHEMA: &str = "tenzor-module-build-v1";
 
-const COMPONENTS: &[&str] = &["webapp-relay"];
+const COMPONENTS: &[Option<&str>] = &[
+    option_env!("TENZOR_COMPONENT_SERVER"),
+    option_env!("TENZOR_COMPONENT_CORE"),
+    option_env!("TENZOR_COMPONENT_GATE"),
+    option_env!("TENZOR_COMPONENT_RELAY"),
+    option_env!("TENZOR_COMPONENT_CLIENT"),
+    option_env!("TENZOR_COMPONENT_SANITIZE"),
+    option_env!("TENZOR_COMPONENT_WEBAPP_RELAY"),
+    option_env!("TENZOR_COMPONENT_VK_TURN"),
+    option_env!("TENZOR_COMPONENT_OPENWRT"),
+    option_env!("TENZOR_COMPONENT_PARTNER"),
+    option_env!("TENZOR_COMPONENT_WEB"),
+];
 
 const CAPABILITIES: &[&str] = &[
     "dedicated-data-plane-v1",
@@ -26,7 +38,8 @@ struct DependencyLock {
 #[derive(Serialize)]
 struct BuildInfo {
     schema: &'static str,
-    components: &'static [&'static str],
+    module: &'static str,
+    components: Vec<&'static str>,
     name: &'static str,
     version: &'static str,
     build_version: &'static str,
@@ -44,12 +57,20 @@ fn build_metadata(value: Option<&'static str>, fallback: &'static str) -> &'stat
         .unwrap_or(fallback)
 }
 
+fn build_components() -> Vec<&'static str> {
+    COMPONENTS
+        .iter()
+        .filter_map(|value| value.map(str::trim).filter(|value| !value.is_empty()))
+        .collect()
+}
+
 // Only compile-time inputs belong here: this path must not read runtime
 // configuration, credentials, files or open sockets.
 fn build_info() -> BuildInfo {
     BuildInfo {
         schema: BUILD_SCHEMA,
-        components: COMPONENTS,
+        module: "tenzor-webapp-relay",
+        components: build_components(),
         name: env!("CARGO_PKG_NAME"),
         version: env!("CARGO_PKG_VERSION"),
         build_version: build_metadata(option_env!("TENZOR_BUILD_VERSION"), "dev"),
