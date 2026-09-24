@@ -1,0 +1,29 @@
+ref	sha	last_commit_date	ahead_of_main	behind_main	status	note
+origin/main	db35b4132667883184c7ebb2a1a383fb703f7cfe	2026-09-23	0	0	target	целевая ветка; содержит все 3 коммита периода
+origin/cornel/goal/slit-vse-izmeneniya-za-3-posledn-14b5f6	db35b41	2026-09-23	0	0	merged-equal-main	база карточки
+origin/cornel/reestr-izmeneniy-i-ishodnaya-proverka-we-2829bb	db35b41	2026-09-23	0	0	merged-equal-main	ветка этой карточки, без своих коммитов
+origin/cornel/office	db35b41	2026-09-23	0	0	merged-equal-main	служебная, не трогать
+origin/cornel/goal/chaos-nabor-mobilnyh-handover-sc-c4bae8	db35b41	2026-09-23	0	0	merged-equal-main	
+origin/cornel/goal/diagnosticheskiy-eksport-dlya-po-4377d8	db35b41	2026-09-23	0	0	merged-equal-main	
+origin/cornel/plan-chaos-nabor-mobilnyh-handover-scena-8909a5	db35b41	2026-09-23	0	0	merged-equal-main	
+origin/cornel/plan-slit-vse-izmeneniya-za-3-poslednih-52c47d	db35b41	2026-09-23	0	0	merged-equal-main	
+origin/cornel/proverka-chaos-nabor-mobilnyh-handover-s-473dd8	db35b41	2026-09-23	0	0	merged-equal-main	
+origin/cornel/proverka-diagnosticheskiy-eksport-dlya-p-daf4cd	db35b41	2026-09-23	0	0	merged-equal-main	
+origin/cornel/uluchsheniya-dumayu-chto-nuzhno-sozdat-o-b6b329	db35b41	2026-09-23	0	0	merged-equal-main	
+origin/cornel/audit-matrica-sovmestimosti-handover-kon-1740d4	8472fd2	2026-07-28	0	3	ancestor-of-main	устарела, целиком в main
+origin/cornel/goal/dev-metriki-nepreryvnosti-soedin-6b1fd9	8472fd2	2026-07-28	0	3	ancestor-of-main	
+origin/cornel/goal/matrica-sovmestimosti-handover-k-3bb269	8472fd2	2026-07-28	0	3	ancestor-of-main	
+origin/cornel/goal/ya-poka-ne-uveren-chto-tak-nado-b814b8	8472fd2	2026-07-28	0	3	ancestor-of-main	
+origin/cornel/menedzher-ofisa-tenzorvpn-1865b6	8472fd2	2026-07-28	0	3	ancestor-of-main	
+origin/cornel/plan-byudzhet-kachestva-smart-pereklyuch-17fffe	8472fd2	2026-07-28	0	3	ancestor-of-main	
+origin/cornel/plan-dev-metriki-nepreryvnosti-soedineni-c741cd	8472fd2	2026-07-28	0	3	ancestor-of-main	
+origin/cornel/plan-diagnosticheskiy-eksport-dlya-podde-95cf38	8472fd2	2026-07-28	0	3	ancestor-of-main	
+origin/cornel/plan-dumayu-chto-nuzhno-sozdat-otdelnoe-9a4c01	8472fd2	2026-07-28	0	3	ancestor-of-main	
+origin/cornel/plan-ekran-ponyatnogo-vosstanovleniya-vp-b3ea66	8472fd2	2026-07-28	0	3	ancestor-of-main	
+origin/cornel/plan-est-oschuschenie-chto-na-mobilnyh-k-aa8b1d	8472fd2	2026-07-28	0	3	ancestor-of-main	
+origin/cornel/plan-istoriya-vosstanovleniya-v-sessii-v-7e767d	8472fd2	2026-07-28	0	3	ancestor-of-main	
+origin/cornel/plan-matrica-sovmestimosti-handover-kont-09eb4f	8472fd2	2026-07-28	0	3	ancestor-of-main	
+origin/cornel/plan-nadezhnost-i-skorost-vpn-bez-prod-0b8f48	8472fd2	2026-07-28	0	3	ancestor-of-main	
+origin/cornel/plan-pomimo-vsego-prochego-esche-raz-neo-4951d2	8472fd2	2026-07-28	0	3	ancestor-of-main	
+origin/cornel/plan-prod-trogat-zaprescheno-nikakih-izm-a1f36c	8472fd2	2026-07-28	0	3	ancestor-of-main	
+origin/cornel/plan-ya-poka-ne-uveren-chto-tak-nado-no-799a71	8472fd2	2026-07-28	0	3	ancestor-of-main	
